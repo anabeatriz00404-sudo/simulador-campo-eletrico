@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Campo Elétrico</title>
+<style>
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f4f6f8;
+        color: #222;
+    }
+    .container {
+        max-width: 1000px;
+        margin: 35px auto;
+        padding: 20px;
+    }
+    .card {
+        background: white;
+        border-radius: 16px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 18px rgba(0,0,0,.08);
+    }
+    h1 { margin-top: 0; text-align: center; }
+    h2 { margin-top: 0; }
+    .subtitle {
+        text-align: center;
+        color: #666;
+        margin-bottom: 25px;
+    }
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 15px;
+    }
+    label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 6px;
+    }
+    input, select {
+        width: 100%;
+        padding: 11px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 16px;
+    }
+    button {
+        width: 100%;
+        padding: 13px;
+        margin-top: 18px;
+        border: 0;
+        border-radius: 9px;
+        background: #222;
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    button:hover { opacity: .88; }
+    .charge {
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 15px;
+    }
+    .charge h3 { margin-top: 0; }
+    .results {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 12px;
+    }
+    .result-box {
+        background: #f4f6f8;
+        border-radius: 10px;
+        padding: 15px;
+    }
+    .result-box strong {
+        display: block;
+        margin-top: 5px;
+        font-size: 19px;
+    }
+    canvas {
+        width: 100%;
+        max-height: 480px;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        background: white;
+    }
+    .interactive-controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        align-items: end;
+    }
+    input[type="range"] { padding: 0; }
+    .formula {
+        text-align: center;
+        font-size: 18px;
+        padding: 12px;
+        background: #f4f6f8;
+        border-radius: 10px;
+        margin-bottom: 15px;
+    }
+    .error {
+        color: #b00020;
+        font-weight: bold;
+        margin-top: 10px;
+    }
+    @media (max-width: 650px) {
+        .interactive-controls { grid-template-columns: 1fr; }
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+    <div class="card">
+        <h1>Simulador de Campo Elétrico</h1>
+        <p class="subtitle">Campo elétrico, força elétrica e relação com a distância</p>
+
+        <div class="grid">
+            <div>
+                <label for="numeroCargas">Quantidade de cargas</label>
+                <input id="numeroCargas" type="number" min="1" step="1" value="2">
+            </div>
+        </div>
+
+        <div id="cargasContainer"></div>
+
+        <button onclick="calcular()">CALCULAR</button>
+        <div id="erro" class="error"></div>
+    </div>
+
+    <div id="resultados" class="card" style="display:none;">
+        <h2>Resultados</h2>
+        <div id="resultadosCampo" class="results"></div>
+        <div id="resultadoForca"></div>
+    </div>
+
+    <div id="graficoCard" class="card" style="display:none;">
+        <h2>Campo Elétrico em função da Distância</h2>
+        <div class="formula">E = k · |Q| / d²</div>
+        <canvas id="grafico" width="900" height="450"></canvas>
+    </div>
+
+    <div id="interativoCard" class="card" style="display:none;">
+        <h2>Gráfico Interativo</h2>
+        <p>Escolha uma carga e altere a distância para ver o resultado do campo elétrico.</p>
+
+        <div class="interactive-controls">
+            <div>
+                <label for="cargaEscolhida">Carga</label>
+                <select id="cargaEscolhida" onchange="atualizarInterativo()"></select>
+            </div>
+
+            <div>
+                <label for="distanciaInterativa">Distância (m)</label>
+                <input id="distanciaDigitada" type="number"
+                       min="0.1" step="0.1"
+                       placeholder="Digite a distância"
+                       oninput="alterarDistanciaPorTexto()"
+                       style="margin-bottom:10px;">
+                <input id="distanciaInterativa" type="range"
+                       min="0.1" max="100" step="0.1"
+                       oninput="atualizarInterativo(true)">
+                <div style="margin-top:6px; color:#666;">
+                    Ou mova a barra: <span id="distanciaValor">-</span> m
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:20px;" class="results">
+            <div class="result-box">
+                Distância
+                <strong id="interDistancia">-</strong>
+            </div>
+            <div class="result-box">
+                d²
+                <strong id="interD2">-</strong>
+            </div>
+            <div class="result-box">
+                Campo elétrico
+                <strong id="interCampo">-</strong>
+            </div>
+        </div>
+
+        <div style="margin-top:20px;">
+            <canvas id="graficoInterativo" width="900" height="450"></canvas>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const k = 9e9;
+let dados = [];
+
+const numeroCargasInput = document.getElementById("numeroCargas");
+numeroCargasInput.addEventListener("input", criarCampos);
+
+function criarCampos() {
+    let n = parseInt(numeroCargasInput.value);
+    if (!n || n < 1) n = 1;
+
+    const container = document.getElementById("cargasContainer");
+    container.innerHTML = "";
+
+    for (let i = 0; i < n; i++) {
+        container.innerHTML += `
+            <div class="charge">
+                <h3>Q${i + 1}</h3>
+                <div class="grid">
+                    <div>
+                        <label>Valor de Q${i + 1} (μC)</label>
+                        <input id="q${i}" type="number" step="any" placeholder="Digite o valor">
+                    </div>
+                    <div>
+                        <label>Distância de Q${i + 1} até P (m)</label>
+                        <input id="d${i}" type="number" min="0.0001" step="any" placeholder="Digite a distância">
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    if (n >= 2) {
+        container.innerHTML += `
+            <div class="charge">
+                <h3>Distância entre Q1 e Q2</h3>
+                <label>Distância (m)</label>
+                <input id="distanciaCargas" type="number" min="0.0001" step="any"
+                       placeholder="Digite a distância entre as cargas">
+            </div>
+        `;
+    }
+}
+
+function calcular() {
+    const erro = document.getElementById("erro");
+    erro.textContent = "";
+
+    let n = parseInt(numeroCargasInput.value);
+    if (!n || n < 1) {
+        erro.textContent = "Digite uma quantidade válida de cargas.";
+        return;
+    }
+
+    dados = [];
+
+    for (let i = 0; i < n; i++) {
+        const q = parseFloat(document.getElementById(`q${i}`).value);
+        const d = parseFloat(document.getElementById(`d${i}`).value);
+
+        if (!Number.isFinite(q) || !Number.isFinite(d) || d <= 0) {
+            erro.textContent = `Preencha corretamente os dados de Q${i + 1}.`;
+            return;
+        }
+
+        const qc = q * 1e-6;
+        const E = k * Math.abs(qc) / (d * d);
+
+        dados.push({ q, d, E });
+    }
+
+    let distanciaCargas = null;
+
+    if (n >= 2) {
+        distanciaCargas = parseFloat(document.getElementById("distanciaCargas").value);
+
+        if (!Number.isFinite(distanciaCargas) || distanciaCargas <= 0) {
+            erro.textContent = "Digite corretamente a distância entre Q1 e Q2.";
+            return;
+        }
+    }
+
+    // Campo resultante seguindo o mesmo modelo do código-base
+    let Eresultante;
+
+    if (n === 1) {
+        Eresultante = dados[0].E;
+    } else if (n === 2) {
+        if ((dados[0].q > 0 && dados[1].q < 0) ||
+            (dados[0].q < 0 && dados[1].q > 0)) {
+            Eresultante = dados[0].E + dados[1].E;
+        } else {
+            Eresultante = Math.abs(dados[0].E - dados[1].E);
+        }
+    } else {
+        Eresultante = dados.reduce((soma, item) => soma + item.E, 0);
+    }
+
+    mostrarResultados(Eresultante, distanciaCargas);
+    desenharGrafico();
+    prepararInterativo();
+}
+
+function formatar(num) {
+    return num.toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+function mostrarResultados(Eresultante, distanciaCargas) {
+    const resultados = document.getElementById("resultados");
+    resultados.style.display = "block";
+
+    let html = "";
+
+    dados.forEach((item, i) => {
+        html += `
+            <div class="result-box">
+                Q${i + 1}
+                <strong>${formatar(item.q)} μC</strong>
+                Distância: ${formatar(item.d)} m<br>
+                d² = ${formatar(item.d * item.d)} m²<br>
+                E = ${formatar(item.E)} N/C
+            </div>
+        `;
+    });
+
+    html += `
+        <div class="result-box">
+            Campo elétrico resultante
+            <strong>${formatar(Eresultante)} N/C</strong>
+        </div>
+    `;
+
+    document.getElementById("resultadosCampo").innerHTML = html;
+
+    let forcaHTML = "";
+
+    if (dados.length >= 2) {
+        const q1 = dados[0].q * 1e-6;
+        const q2 = dados[1].q * 1e-6;
+        const F = k * Math.abs(q1 * q2) / (distanciaCargas * distanciaCargas);
+        const tipo = dados[0].q * dados[1].q < 0 ? "Atração" : "Repulsão";
+
+        forcaHTML = `
+            <div style="margin-top:20px;" class="result-box">
+                <b>Força elétrica entre Q1 e Q2</b><br><br>
+                Distância: ${formatar(distanciaCargas)} m<br>
+                d² = ${formatar(distanciaCargas * distanciaCargas)} m²<br>
+                Força elétrica = <strong>${formatar(F)} N</strong><br>
+                Tipo: <strong>${tipo}</strong>
+            </div>
+        `;
+    }
+
+    document.getElementById("resultadoForca").innerHTML = forcaHTML;
+}
+
+function desenharGrafico() {
+    const card = document.getElementById("graficoCard");
+    card.style.display = "block";
+
+    const canvas = document.getElementById("grafico");
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const W = canvas.width, H = canvas.height;
+    const pad = 65;
+
+    let maiorD = Math.max(...dados.map(x => x.d));
+    let maxX = Math.max(maiorD * 2, maiorD + 1);
+
+    let pontos = [];
+    for (let j = 0; j < 500; j++) {
+        const d = Math.max(0.05, maxX * 0.02 + (maxX - maxX * 0.02) * j / 499);
+        let E = 0;
+        dados.forEach(item => {
+            E += k * Math.abs(item.q * 1e-6) / (d * d);
+        });
+        pontos.push({d, E});
+    }
+
+    const maxY = Math.max(...pontos.map(p => p.E), ...dados.map(x => x.E)) * 1.08;
+
+    // Eixos
+    ctx.beginPath();
+    ctx.moveTo(pad, 20);
+    ctx.lineTo(pad, H - pad);
+    ctx.lineTo(W - 20, H - pad);
+    ctx.stroke();
+
+    // Curva
+    ctx.beginPath();
+    pontos.forEach((p, i) => {
+        const x = pad + (p.d / maxX) * (W - pad - 30);
+        const y = H - pad - (p.E / maxY) * (H - pad - 40);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Pontos das cargas
+    dados.forEach((item, i) => {
+        const x = pad + (item.d / maxX) * (W - pad - 30);
+        const y = H - pad - (item.E / maxY) * (H - pad - 40);
+
+        ctx.beginPath();
+        ctx.arc(x, y, 6, 0, 2 * Math.PI);
+        ctx.fill();
+
+        ctx.font = "14px Arial";
+        ctx.fillText(`Q${i + 1}`, x + 8, y - 8);
+    });
+
+    ctx.font = "15px Arial";
+    ctx.fillText("Distância (m)", W / 2 - 45, H - 15);
+
+    ctx.save();
+    ctx.translate(18, H / 2 + 45);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText("Campo Elétrico (N/C)", 0, 0);
+    ctx.restore();
+
+    ctx.font = "18px Arial";
+    ctx.fillText("Campo Elétrico em função da Distância", W / 2 - 190, 20);
+}
+
+function prepararInterativo() {
+    const card = document.getElementById("interativoCard");
+    card.style.display = "block";
+
+    const select = document.getElementById("cargaEscolhida");
+    select.innerHTML = "";
+
+    dados.forEach((item, i) => {
+        const option = document.createElement("option");
+        option.value = i;
+        option.textContent = `Q${i + 1} (${formatar(item.q)} μC)`;
+        select.appendChild(option);
+    });
+
+    const slider = document.getElementById("distanciaInterativa");
+
+    // Começa com a distância que a pessoa digitou.
+    // O máximo é amplo para permitir explorar a relação 1/d².
+    slider.value = dados[0].d;
+    slider.min = Math.max(0.1, Math.min(dados[0].d * 0.2, dados[0].d));
+    slider.max = Math.max(100, dados[0].d * 5);
+
+    document.getElementById("distanciaDigitada").value = dados[0].d;
+
+    atualizarInterativo(false);
+}
+
+function atualizarInterativo(vindoDaBarra = false) {
+    if (!dados.length) return;
+
+    const indice = parseInt(document.getElementById("cargaEscolhida").value);
+    const slider = document.getElementById("distanciaInterativa");
+    const campoTexto = document.getElementById("distanciaDigitada");
+
+    // Se a pessoa mexeu na barra, atualiza o campo de texto.
+    if (vindoDaBarra) {
+        campoTexto.value = slider.value;
+    }
+
+    const distancia = parseFloat(campoTexto.value);
+
+    // Evita calcular com valor inválido ou zero.
+    if (!Number.isFinite(distancia) || distancia <= 0) {
+        return;
+    }
+
+    // Mantém a barra sincronizada com o valor digitado.
+    if (!vindoDaBarra) {
+        if (distancia < parseFloat(slider.min)) {
+            slider.min = distancia;
+        }
+        if (distancia > parseFloat(slider.max)) {
+            slider.max = distancia;
+        }
+        slider.value = distancia;
+    }
+
+    const item = dados[indice];
+    const Q = Math.abs(item.q) * 1e-6;
+
+    const E = k * Q / (distancia * distancia);
+    const d2 = distancia * distancia;
+
+    document.getElementById("distanciaValor").textContent = formatar(distancia);
+    document.getElementById("interDistancia").textContent = formatar(distancia) + " m";
+    document.getElementById("interD2").textContent = formatar(d2) + " m²";
+    document.getElementById("interCampo").textContent = formatar(E) + " N/C";
+
+    desenharGraficoInterativo(indice, distancia);
+}
+
+function desenharGraficoInterativo(indice, distanciaAtual) {
+    const canvas = document.getElementById("graficoInterativo");
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const W = canvas.width, H = canvas.height;
+    const pad = 65;
+
+    const item = dados[indice];
+    const Q = Math.abs(item.q) * 1e-6;
+
+    const maxX = Math.max(100, parseFloat(document.getElementById("distanciaInterativa").max));
+
+    let pontos = [];
+    for (let j = 0; j < 500; j++) {
+        const d = Math.max(0.05, maxX * 0.005 + (maxX - maxX * 0.005) * j / 499);
+        const E = k * Q / (d * d);
+        pontos.push({d, E});
+    }
+
+    const EAtual = k * Q / (distanciaAtual * distanciaAtual);
+    const maxY = Math.max(...pontos.map(p => p.E), EAtual) * 1.08;
+
+    // Eixos
+    ctx.beginPath();
+    ctx.moveTo(pad, 20);
+    ctx.lineTo(pad, H - pad);
+    ctx.lineTo(W - 20, H - pad);
+    ctx.stroke();
+
+    // Curva
+    ctx.beginPath();
+    pontos.forEach((p, i) => {
+        const x = pad + (p.d / maxX) * (W - pad - 30);
+        const y = H - pad - (p.E / maxY) * (H - pad - 40);
+
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Ponto atual
+    const xAtual = pad + (distanciaAtual / maxX) * (W - pad - 30);
+    const yAtual = H - pad - (EAtual / maxY) * (H - pad - 40);
+
+    ctx.beginPath();
+    ctx.arc(xAtual, yAtual, 8, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Linha vertical
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(xAtual, H - pad);
+    ctx.lineTo(xAtual, yAtual);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.font = "15px Arial";
+    ctx.fillText("Distância (m)", W / 2 - 45, H - 15);
+
+    ctx.save();
+    ctx.translate(18, H / 2 + 45);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText("Campo Elétrico (N/C)", 0, 0);
+    ctx.restore();
+
+    ctx.font = "18px Arial";
+    ctx.fillText(`Campo Elétrico - Q${indice + 1}`, W / 2 - 100, 20);
+}
+
+// Cria os campos ao abrir a página
+criarCampos();
+</script>
+
+</body>
+</html>
